@@ -48,6 +48,10 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
         "location": {
           "defaultValue": "",
           "type": "String"
+        },
+        "slotName": {
+          "defaultValue": "",
+          "type": "String"
         }
       },
       "variables": {},
@@ -102,10 +106,108 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
             "name": "[parameters('functionAppName')]",
             "clientAffinityEnabled": false,
             "hostingEnvironment": ""
-          }
+          },
+          "resources": [
+            {
+              "name": "slotConfigNames",
+              "type": "config",
+              "apiVersion": "2015-08-01",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+              ],
+              "tags": {
+                "displayName": "slotConfigNames"
+              },
+              "properties": {
+                "appSettingNames": [
+                  "StickySetting",
+                  "WEBSITE_CONTENTSHARE"
+                ]
+              }
+            },
+            {
+              "apiVersion": "2015-08-01",
+              "name": "appsettings",
+              "type": "config",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+                "[resourceId('Microsoft.Insights/components', parameters('appInsightsName'))]"
+              ],
+              "properties": {
+                "AzureWebJobsDashboard": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').keys[0].value)]",
+                "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').keys[0].value)]",
+                "FUNCTIONS_EXTENSION_VERSION": "[parameters('functionAppExtensionVersion')]",
+                "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').keys[0].value)]",
+                "WEBSITE_CONTENTSHARE": "[parameters('functionAppName')]",
+                "WEBSITE_NODE_DEFAULT_VERSION": "[parameters('functionAppNodeVersion')]",
+                "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.Insights/components', parameters('appInsightsName')), '2014-04-01').InstrumentationKey]",
+                "StickySetting": "AlwaysWithProductionSlot",
+                "AzureWebJobsSecretStorageType": "Blob"
+              }
+            },
+            {
+              "apiVersion": "2015-08-01",
+              "name": "[parameters('slotName')]",
+              "type": "slots",
+              "tags": {
+                "displayName": "[concat(parameters('slotName'), ' Deployment Slot')]"
+              },
+              "location": "[parameters('location')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/Sites', parameters('functionAppName'))]"
+              ],
+              "properties": {},
+              "resources": [
+                {
+                  "apiVersion": "2015-08-01",
+                  "name": "appsettings",
+                  "type": "config",
+                  "dependsOn": [
+                    "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+                    "[resourceId('Microsoft.Insights/components', parameters('appInsightsName'))]",
+                    "[resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), parameters('slotName'))]"
+                  ],
+                  "properties": {
+                    "AzureWebJobsDashboard": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').keys[0].value)]",
+                    "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').keys[0].value)]",
+                    "FUNCTIONS_EXTENSION_VERSION": "[parameters('functionAppExtensionVersion')]",
+                    "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2016-01-01').keys[0].value)]",
+                    "WEBSITE_CONTENTSHARE": "[parameters('functionAppName')]",
+                    "WEBSITE_NODE_DEFAULT_VERSION": "[parameters('functionAppNodeVersion')]",
+                    "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.Insights/components', parameters('appInsightsName')), '2014-04-01').InstrumentationKey]",
+                    "StickySetting": "AlwaysWithProductionSlot",
+                    "AzureWebJobsSecretStorageType": "Blob"
+                  }
+                },
+                {
+                  "apiVersion": "2015-08-01",
+                  "type": "config",
+                  "name": "web",
+                  "dependsOn": [
+                    "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
+                    "[resourceId('Microsoft.Web/sites/slots', parameters('functionAppName'), parameters('slotName'))]"
+                  ],
+                  "properties": {
+                    "use32BitWorkerProcess": false
+                  }
+                }
+              ]
+            },
+            {
+              "apiVersion": "2015-08-01",
+              "type": "config",
+              "name": "web",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]"
+              ],
+              "properties": {
+                "use32BitWorkerProcess": false
+              }
+            }
+          ]
         }
       ]
-    };
+    }
   }
 
   public getParameters(config: ServerlessAzureConfig): any {
@@ -118,6 +220,7 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
       functionAppNodeVersion: resourceConfig.nodeVersion,
       functionAppWorkerRuntime: resourceConfig.workerRuntime,
       functionAppExtensionVersion: resourceConfig.extensionVersion,
+      slotName: "canary",
     };
   }
 }

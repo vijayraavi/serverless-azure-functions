@@ -15,6 +15,7 @@ import { AzureLoginPlugin } from "./plugins/login/azureLoginPlugin";
 import { AzureApimServicePlugin } from "./plugins/apim/azureApimServicePlugin";
 import { AzureApimFunctionPlugin } from "./plugins/apim/azureApimFunctionPlugin";
 import { AzureFuncPlugin } from "./plugins/func/azureFuncPlugin";
+import { AzureSwapSlotPlugin } from "./plugins/deploy/azureSwapSlotPlugin";
 import { AzureOfflinePlugin } from "./plugins/offline/azureOfflinePlugin"
 import { AzureRollbackPlugin } from "./plugins/rollback/azureRollbackPlugin"
 
@@ -36,6 +37,7 @@ export default class AzureIndex {
     this.serverless.pluginManager.addPlugin(AzureFuncPlugin);
     this.serverless.pluginManager.addPlugin(AzureOfflinePlugin);
     this.serverless.pluginManager.addPlugin(AzureRollbackPlugin);
+    this.serverless.pluginManager.addPlugin(AzureSwapSlotPlugin);
   }
 }
 

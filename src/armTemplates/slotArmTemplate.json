@@ -1,0 +1,636 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "serverfarms_WestUSPlan_name": {
+          "defaultValue": "WestUSPlan",
+          "type": "String"
+      },
+      "sites_sls_westus_dev_tabarlow8_name": {
+          "defaultValue": "sls-westus-dev-tabarlow8",
+          "type": "String"
+      },
+      "storageAccounts_slswesdevtabarlow8sa_name": {
+          "defaultValue": "slswesdevtabarlow8sa",
+          "type": "String"
+      },
+      "components_sls_westus_dev_appinsights_name": {
+          "defaultValue": "sls-westus-dev-appinsights",
+          "type": "String"
+      },
+      "actionGroups_Application%20Insights%20Smart%20Detection_name": {
+          "defaultValue": "Application%20Insights%20Smart%20Detection",
+          "type": "String"
+      }
+  },
+  "variables": {},
+  "resources": [
+      {
+          "type": "microsoft.insights/actionGroups",
+          "apiVersion": "2019-03-01",
+          "name": "[parameters('actionGroups_Application%20Insights%20Smart%20Detection_name')]",
+          "location": "Global",
+          "properties": {
+              "groupShortName": "SmartDetect",
+              "enabled": true,
+              "emailReceivers": [],
+              "smsReceivers": [],
+              "webhookReceivers": [],
+              "itsmReceivers": [],
+              "azureAppPushReceivers": [],
+              "automationRunbookReceivers": [],
+              "voiceReceivers": [],
+              "logicAppReceivers": [],
+              "azureFunctionReceivers": []
+          }
+      },
+      {
+          "type": "microsoft.insights/components",
+          "apiVersion": "2015-05-01",
+          "name": "[parameters('components_sls_westus_dev_appinsights_name')]",
+          "location": "westus",
+          "kind": "web",
+          "properties": {
+              "Application_Type": "web",
+              "Request_Source": "IbizaWebAppExtensionCreate"
+          }
+      },
+      {
+          "type": "Microsoft.Storage/storageAccounts",
+          "apiVersion": "2019-04-01",
+          "name": "[parameters('storageAccounts_slswesdevtabarlow8sa_name')]",
+          "location": "westus",
+          "sku": {
+              "name": "Standard_LRS",
+              "tier": "Standard"
+          },
+          "kind": "Storage",
+          "properties": {
+              "networkAcls": {
+                  "bypass": "AzureServices",
+                  "virtualNetworkRules": [],
+                  "ipRules": [],
+                  "defaultAction": "Allow"
+              },
+              "supportsHttpsTrafficOnly": false,
+              "encryption": {
+                  "services": {
+                      "file": {
+                          "enabled": true
+                      },
+                      "blob": {
+                          "enabled": true
+                      }
+                  },
+                  "keySource": "Microsoft.Storage"
+              }
+          }
+      },
+      {
+          "type": "Microsoft.Web/serverfarms",
+          "apiVersion": "2016-09-01",
+          "name": "[parameters('serverfarms_WestUSPlan_name')]",
+          "location": "West US",
+          "sku": {
+              "name": "Y1",
+              "tier": "Dynamic",
+              "size": "Y1",
+              "family": "Y",
+              "capacity": 0
+          },
+          "kind": "functionapp",
+          "properties": {
+              "name": "[parameters('serverfarms_WestUSPlan_name')]",
+              "perSiteScaling": false,
+              "reserved": false,
+              "targetWorkerCount": 0,
+              "targetWorkerSizeId": 0
+          }
+      },
+      {
+          "type": "Microsoft.Storage/storageAccounts/blobServices",
+          "apiVersion": "2019-04-01",
+          "name": "[concat(parameters('storageAccounts_slswesdevtabarlow8sa_name'), '/default')]",
+          "dependsOn": [
+              "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_slswesdevtabarlow8sa_name'))]"
+          ],
+          "properties": {
+              "cors": {
+                  "corsRules": []
+              },
+              "deleteRetentionPolicy": {
+                  "enabled": false
+              }
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites",
+          "apiVersion": "2016-08-01",
+          "name": "[parameters('sites_sls_westus_dev_tabarlow8_name')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_WestUSPlan_name'))]"
+          ],
+          "kind": "functionapp",
+          "properties": {
+              "enabled": true,
+              "hostNameSslStates": [
+                  {
+                      "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '.azurewebsites.net')]",
+                      "sslState": "Disabled",
+                      "hostType": "Standard"
+                  },
+                  {
+                      "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '.scm.azurewebsites.net')]",
+                      "sslState": "Disabled",
+                      "hostType": "Repository"
+                  }
+              ],
+              "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_WestUSPlan_name'))]",
+              "reserved": false,
+              "scmSiteAlsoStopped": false,
+              "clientAffinityEnabled": false,
+              "clientCertEnabled": false,
+              "hostNamesDisabled": false,
+              "containerSize": 1536,
+              "dailyMemoryTimeQuota": 0,
+              "httpsOnly": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/config",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/web')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "numberOfWorkers": 1,
+              "defaultDocuments": [
+                  "Default.htm",
+                  "Default.html",
+                  "Default.asp",
+                  "index.htm",
+                  "index.html",
+                  "iisstart.htm",
+                  "default.aspx",
+                  "index.php"
+              ],
+              "netFrameworkVersion": "v4.0",
+              "phpVersion": "5.6",
+              "pythonVersion": "",
+              "nodeVersion": "",
+              "linuxFxVersion": "",
+              "requestTracingEnabled": false,
+              "remoteDebuggingEnabled": false,
+              "httpLoggingEnabled": false,
+              "logsDirectorySizeLimit": 35,
+              "detailedErrorLoggingEnabled": false,
+              "publishingUsername": "$sls-westus-dev-tabarlow8",
+              "scmType": "None",
+              "use32BitWorkerProcess": true,
+              "webSocketsEnabled": false,
+              "alwaysOn": false,
+              "appCommandLine": "",
+              "managedPipelineMode": "Integrated",
+              "virtualApplications": [
+                  {
+                      "virtualPath": "/",
+                      "physicalPath": "site\\wwwroot",
+                      "preloadEnabled": false,
+                      "virtualDirectories": null
+                  }
+              ],
+              "winAuthAdminState": 0,
+              "winAuthTenantState": 0,
+              "customAppPoolIdentityAdminState": false,
+              "customAppPoolIdentityTenantState": false,
+              "loadBalancing": "LeastRequests",
+              "routingRules": [],
+              "experiments": {
+                  "rampUpRules": []
+              },
+              "autoHealEnabled": false,
+              "vnetName": "",
+              "siteAuthEnabled": false,
+              "siteAuthSettings": {
+                  "enabled": null,
+                  "unauthenticatedClientAction": null,
+                  "tokenStoreEnabled": null,
+                  "allowedExternalRedirectUrls": null,
+                  "defaultProvider": null,
+                  "clientId": null,
+                  "clientSecret": null,
+                  "clientSecretCertificateThumbprint": null,
+                  "issuer": null,
+                  "allowedAudiences": null,
+                  "additionalLoginParams": null,
+                  "isAadAutoProvisioned": false,
+                  "googleClientId": null,
+                  "googleClientSecret": null,
+                  "googleOAuthScopes": null,
+                  "facebookAppId": null,
+                  "facebookAppSecret": null,
+                  "facebookOAuthScopes": null,
+                  "twitterConsumerKey": null,
+                  "twitterConsumerSecret": null,
+                  "microsoftAccountClientId": null,
+                  "microsoftAccountClientSecret": null,
+                  "microsoftAccountOAuthScopes": null
+              },
+              "cors": {
+                  "allowedOrigins": [
+                      "https://functions.azure.com",
+                      "https://functions-staging.azure.com",
+                      "https://functions-next.azure.com"
+                  ],
+                  "supportCredentials": false
+              },
+              "localMySqlEnabled": false,
+              "http20Enabled": false,
+              "minTlsVersion": "1.2",
+              "ftpsState": "AllAllowed",
+              "reservedInstanceCount": 0
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/4ee4570f4a9a4919b06558443252d43c')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "4ee4570f4a9a4919b06558443252d43c",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-07-02T22:48:22.372368Z",
+              "end_time": "2019-07-02T22:48:30.7854969Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/6aa1cbf07e8741b9a1246905c5e579eb')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "6aa1cbf07e8741b9a1246905c5e579eb",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-06-29T16:15:32.4730008Z",
+              "end_time": "2019-06-29T16:15:36.1058368Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/9967946d6aa14e5d9874d0871b553932')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "9967946d6aa14e5d9874d0871b553932",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-07-02T22:43:14.7095491Z",
+              "end_time": "2019-07-02T22:43:18.8632432Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/9ae83aff21374953b13f40ccf20ffdcd')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "9ae83aff21374953b13f40ccf20ffdcd",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-07-02T22:52:38.7119085Z",
+              "end_time": "2019-07-02T22:52:42.3199884Z",
+              "active": true
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/ae62f71181634b448888abdca8f49c77')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "ae62f71181634b448888abdca8f49c77",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-06-28T18:10:38.9483735Z",
+              "end_time": "2019-06-28T18:10:43.0494309Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/b3a842cfd17f4c87988cbbe3d2769f86')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "b3a842cfd17f4c87988cbbe3d2769f86",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-06-29T18:25:19.3659152Z",
+              "end_time": "2019-06-29T18:25:23.1508496Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/c438c99816824178ac89429d2bdd94d9')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "c438c99816824178ac89429d2bdd94d9",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-07-02T22:27:10.8576165Z",
+              "end_time": "2019-07-02T22:27:14.7673051Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/ee1b87ede5374c7596071f4926e32433')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "ee1b87ede5374c7596071f4926e32433",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-06-28T19:50:36.4856323Z",
+              "end_time": "2019-06-28T19:50:40.8648508Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/deployments",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/ff1e77c56c404680940d9366dc09f9c2')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "id": "ff1e77c56c404680940d9366dc09f9c2",
+              "status": 4,
+              "author_email": "N/A",
+              "author": "N/A",
+              "deployer": "Push-Deployer",
+              "message": "Created via a push deployment",
+              "start_time": "2019-06-29T16:20:33.8940043Z",
+              "end_time": "2019-06-29T16:20:37.6156952Z",
+              "active": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/hostNameBindings",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/', parameters('sites_sls_westus_dev_tabarlow8_name'), '.azurewebsites.net')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "siteName": "sls-westus-dev-tabarlow8",
+              "hostNameType": "Verified"
+          }
+      },
+      {
+          "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+          "apiVersion": "2019-04-01",
+          "name": "[concat(parameters('storageAccounts_slswesdevtabarlow8sa_name'), '/default/azure-webjobs-hosts')]",
+          "dependsOn": [
+              "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccounts_slswesdevtabarlow8sa_name'), 'default')]",
+              "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_slswesdevtabarlow8sa_name'))]"
+          ],
+          "properties": {
+              "publicAccess": "None"
+          }
+      },
+      {
+          "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+          "apiVersion": "2019-04-01",
+          "name": "[concat(parameters('storageAccounts_slswesdevtabarlow8sa_name'), '/default/azure-webjobs-secrets')]",
+          "dependsOn": [
+              "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccounts_slswesdevtabarlow8sa_name'), 'default')]",
+              "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_slswesdevtabarlow8sa_name'))]"
+          ],
+          "properties": {
+              "publicAccess": "None"
+          }
+      },
+      {
+          "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+          "apiVersion": "2019-04-01",
+          "name": "[concat(parameters('storageAccounts_slswesdevtabarlow8sa_name'), '/default/deployment-artifacts')]",
+          "dependsOn": [
+              "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccounts_slswesdevtabarlow8sa_name'), 'default')]",
+              "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_slswesdevtabarlow8sa_name'))]"
+          ],
+          "properties": {
+              "publicAccess": "Blob"
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/slots",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/canary')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]",
+              "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_WestUSPlan_name'))]"
+          ],
+          "kind": "functionapp",
+          "properties": {
+              "enabled": true,
+              "hostNameSslStates": [
+                  {
+                      "name": "sls-westus-dev-tabarlow8-canary.azurewebsites.net",
+                      "sslState": "Disabled",
+                      "hostType": "Standard"
+                  },
+                  {
+                      "name": "sls-westus-dev-tabarlow8-canary.scm.azurewebsites.net",
+                      "sslState": "Disabled",
+                      "hostType": "Repository"
+                  }
+              ],
+              "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_WestUSPlan_name'))]",
+              "reserved": false,
+              "scmSiteAlsoStopped": false,
+              "clientAffinityEnabled": false,
+              "clientCertEnabled": false,
+              "hostNamesDisabled": false,
+              "containerSize": 1536,
+              "dailyMemoryTimeQuota": 0,
+              "httpsOnly": false
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/slots/config",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/canary/web')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites/slots', parameters('sites_sls_westus_dev_tabarlow8_name'), 'canary')]",
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "numberOfWorkers": 1,
+              "defaultDocuments": [
+                  "Default.htm",
+                  "Default.html",
+                  "Default.asp",
+                  "index.htm",
+                  "index.html",
+                  "iisstart.htm",
+                  "default.aspx",
+                  "index.php",
+                  "hostingstart.html"
+              ],
+              "netFrameworkVersion": "v4.0",
+              "phpVersion": "5.6",
+              "pythonVersion": "",
+              "nodeVersion": "",
+              "linuxFxVersion": "",
+              "requestTracingEnabled": false,
+              "remoteDebuggingEnabled": false,
+              "remoteDebuggingVersion": "VS2017",
+              "httpLoggingEnabled": false,
+              "logsDirectorySizeLimit": 35,
+              "detailedErrorLoggingEnabled": false,
+              "publishingUsername": "$sls-westus-dev-tabarlow8__canary",
+              "scmType": "None",
+              "use32BitWorkerProcess": true,
+              "webSocketsEnabled": false,
+              "alwaysOn": false,
+              "appCommandLine": "",
+              "managedPipelineMode": "Integrated",
+              "virtualApplications": [
+                  {
+                      "virtualPath": "/",
+                      "physicalPath": "site\\wwwroot",
+                      "preloadEnabled": false,
+                      "virtualDirectories": null
+                  }
+              ],
+              "winAuthAdminState": 0,
+              "winAuthTenantState": 0,
+              "customAppPoolIdentityAdminState": false,
+              "customAppPoolIdentityTenantState": false,
+              "loadBalancing": "LeastRequests",
+              "routingRules": [],
+              "experiments": {
+                  "rampUpRules": []
+              },
+              "autoHealEnabled": false,
+              "vnetName": "",
+              "siteAuthEnabled": false,
+              "siteAuthSettings": {
+                  "enabled": null,
+                  "unauthenticatedClientAction": null,
+                  "tokenStoreEnabled": null,
+                  "allowedExternalRedirectUrls": null,
+                  "defaultProvider": null,
+                  "clientId": null,
+                  "clientSecret": null,
+                  "clientSecretCertificateThumbprint": null,
+                  "issuer": null,
+                  "allowedAudiences": null,
+                  "additionalLoginParams": null,
+                  "isAadAutoProvisioned": false,
+                  "googleClientId": null,
+                  "googleClientSecret": null,
+                  "googleOAuthScopes": null,
+                  "facebookAppId": null,
+                  "facebookAppSecret": null,
+                  "facebookOAuthScopes": null,
+                  "twitterConsumerKey": null,
+                  "twitterConsumerSecret": null,
+                  "microsoftAccountClientId": null,
+                  "microsoftAccountClientSecret": null,
+                  "microsoftAccountOAuthScopes": null
+              },
+              "cors": {
+                  "allowedOrigins": [
+                      "https://functions.azure.com",
+                      "https://functions-staging.azure.com",
+                      "https://functions-next.azure.com"
+                  ],
+                  "supportCredentials": false
+              },
+              "localMySqlEnabled": false,
+              "http20Enabled": false,
+              "minTlsVersion": "1.2",
+              "ftpsState": "AllAllowed",
+              "reservedInstanceCount": 0
+          }
+      },
+      {
+          "type": "Microsoft.Web/sites/slots/hostNameBindings",
+          "apiVersion": "2016-08-01",
+          "name": "[concat(parameters('sites_sls_westus_dev_tabarlow8_name'), '/canary/', parameters('sites_sls_westus_dev_tabarlow8_name'), '-canary.azurewebsites.net')]",
+          "location": "West US",
+          "dependsOn": [
+              "[resourceId('Microsoft.Web/sites/slots', parameters('sites_sls_westus_dev_tabarlow8_name'), 'canary')]",
+              "[resourceId('Microsoft.Web/sites', parameters('sites_sls_westus_dev_tabarlow8_name'))]"
+          ],
+          "properties": {
+              "siteName": "sls-westus-dev-tabarlow8(canary)",
+              "hostNameType": "Verified"
+          }
+      }
+  ]
+}

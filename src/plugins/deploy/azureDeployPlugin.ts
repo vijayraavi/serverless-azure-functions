@@ -15,6 +15,7 @@ export class AzureDeployPlugin extends AzureBasePlugin<AzureLoginOptions> {
     this.hooks = {
       "deploy:deploy": this.deploy.bind(this),
       "deploy:list:list": this.list.bind(this),
+      "deploy:slot:slot": this.deploySlot.bind(this),
     };
 
     this.commands = {
@@ -25,7 +26,7 @@ export class AzureDeployPlugin extends AzureBasePlugin<AzureLoginOptions> {
             lifecycleEvents: [
               "list"
             ]
-          }
+          },
         },
         options: {
           resourceGroup: {
@@ -39,6 +40,14 @@ export class AzureDeployPlugin extends AzureBasePlugin<AzureLoginOptions> {
           package: {
             usage: "Package to deploy",
             shortcut: "p",
+          },
+          slot: {
+            usage: "Target slot for deployment",
+            shortcut: "t",
+          },
+          autoSwap: {
+            usage: "Auto-swap slots upon deployment. Only applicable if `slot` is specified",
+            shortcut: "a",
           }
         }
       }
@@ -62,5 +71,9 @@ export class AzureDeployPlugin extends AzureBasePlugin<AzureLoginOptions> {
     await resourceService.deployResourceGroup();
     const functionApp = await functionAppService.deploy();
     await functionAppService.uploadFunctions(functionApp);
+  }
+
+  private async deploySlot() {
+    this.log("Got to deploy slot");
   }
 }
