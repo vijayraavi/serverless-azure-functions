@@ -1,10 +1,13 @@
 import Serverless from "serverless";
 import Service from "serverless/classes/Service";
 import configConstants from "../config";
-import { ServerlessAzureConfig, ServerlessAzureFunctionConfig } from "../models/serverless";
+import { ServerlessAzureConfig, ServerlessAzureFunctionConfig, SupportedRuntimeLanguage, FunctionRuntime } from "../models/serverless";
 import { constants } from "../shared/constants";
 import { Utils } from "../shared/utils";
 import { AzureNamingService, AzureNamingServiceOptions } from "./namingService";
+import runtimeVersionsJson from "./runtimeVersions.json";
+import { Guard } from "../shared/guard";
+import semver from "semver";
 
 /**
  * Handles all Service Configuration
@@ -104,6 +107,13 @@ export class ConfigService {
   }
 
   /**
+   * Function runtime configuration
+   */
+  public getFunctionRuntime(): FunctionRuntime {
+    return this.config.provider.functionRuntime;
+  }
+
+  /**
    * Set any default values required for service
    * @param config Current Serverless configuration
    */
@@ -139,7 +149,8 @@ export class ConfigService {
       subscriptionId,
       tenantId,
       appId,
-      deployment
+      deployment,
+      runtime
     } = config.provider;
 
     const options: AzureNamingServiceOptions = {
@@ -173,7 +184,63 @@ export class ConfigService {
       ...deployment
     }
 
+    config.provider.functionRuntime = this.getRuntime(runtime)
+
     return config;
+  }
+
+  private getRuntime(runtime: string): FunctionRuntime {
+    Guard.null(runtime, "runtime", "Runtime version not specified in serverless.yml");
+
+    let versionMatch = runtime.match(/([0-9]+\.)+[0-9]*x?/);
+    let languageMatch = runtime.match(/nodejs|python/);
+
+    let versionInput: string;
+    let languageInput: string;
+
+    // Extract version and language input
+    if (versionMatch && languageMatch) {
+      versionInput = versionMatch[0];
+      languageInput = languageMatch[0];
+    } else {
+      throw new Error(`Invalid runtime: ${runtime}. ${this.getRuntimeErrorMessage(null)}`);
+    }
+
+    const targetedVersionRegex = new RegExp(
+      `^${versionInput}`
+        .replace(".", "\.")
+        .replace("x", "[0-9]+"),
+    );
+
+    const matchingVersions: string[] = runtimeVersionsJson[languageInput]
+      .filter((item) => item.version.match(targetedVersionRegex))
+      .map((item) => item.version);
+
+    if (!matchingVersions.length) {
+      throw new Error(`Runtime ${runtime} is not supported. ${this.getRuntimeErrorMessage(null)}`);
+    }
+
+    const version = matchingVersions.sort(semver.rcompare)[0];
+
+    const language: SupportedRuntimeLanguage = {
+      "nodejs": SupportedRuntimeLanguage.NODE,
+      "python": SupportedRuntimeLanguage.PYTHON
+    }[languageInput];
+    
+    return {
+      language,
+      version
+    }
+  }
+
+  private getRuntimeErrorMessage(language: SupportedRuntimeLanguage) {
+    if (language) {
+      return `Supported versions for ${language} are: ${
+        runtimeVersionsJson[language]
+          .map((item) => item.version)
+          .join(",")}`
+    }
+    return `Supported versions: ${JSON.stringify(runtimeVersionsJson, null, 2)}`
   }
 
   /**
