@@ -28,6 +28,7 @@ export enum ArmTemplateType {
 export enum ArmParamType {
   String = "String",
   Int = "Int",
+  Bool = "Bool",
   SystemAssigned = "SystemAssigned",
 }
 
@@ -45,11 +46,13 @@ export interface ArmResourceTemplate {
 }
 
 export interface ArmParameters {
-  [key: string]: {
-    type?: ArmParamType;
-    value?: string | number;
-    defaultValue?: string | number;
-  };
+  [key: string]: ArmTemplateParameter;
+}
+
+export interface ArmTemplateParameter {
+  type?: ArmParamType;
+    value?: string | number | boolean;
+    defaultValue?: string | number | boolean;
 }
 
 /**

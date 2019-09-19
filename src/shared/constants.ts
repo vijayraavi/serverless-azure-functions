@@ -32,5 +32,6 @@ export const constants = {
   runtimeExtensions: {
     node: ".js",
     python: ".py"
-  }
+  },
+  pythonHandlerName: "__init__.py"
 }

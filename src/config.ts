@@ -1,3 +1,5 @@
+import { SupportedRuntimeLanguage } from "./models/serverless";
+
 export const configConstants = {
   bearer: "Bearer ",
   deploymentConfig: {
@@ -20,7 +22,8 @@ export const configConstants = {
   functionsAdminApiPath: "/admin/functions/",
   functionsApiPath: "/api/functions",
   funcCoreTools: "func",
-  funcCoreToolsArgs: ["host", "start"],
+  funcCoreToolsStartArgs: ["host", "start"],
+  funcCoreToolsPackArgs: ["pack"],
   funcConsoleColor: "blue",
   runFromPackageSetting: "WEBSITE_RUN_FROM_PACKAGE",
   jsonContentType: "application/json",
@@ -41,6 +44,13 @@ export const configConstants = {
     prefix: "sls",
     localPort: 7071,
   },
+  linuxOnlyRuntimes: [
+    SupportedRuntimeLanguage.PYTHON
+  ],
+  runtimeAliases: {
+    "nodejs": SupportedRuntimeLanguage.NODE,
+    "python": SupportedRuntimeLanguage.PYTHON
+  }
 };
 
 export default configConstants;

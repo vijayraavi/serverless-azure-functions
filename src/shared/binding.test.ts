@@ -2,6 +2,7 @@ import Serverless from "serverless";
 import { MockFactory } from "../test/mockFactory";
 import { BindingUtils } from "./bindings";
 import mockFs from "mock-fs";
+import { SupportedRuntimeLanguage } from "../models/serverless";
 
 describe("Bindings", () => {
   let sls: Serverless;
@@ -23,7 +24,10 @@ describe("Bindings", () => {
   });
 
   it("Http output bindings should default to 'res'", () => {
-    const binding = BindingUtils.getHttpOutBinding();
+    const binding = BindingUtils.getHttpOutBinding({
+      language: SupportedRuntimeLanguage.NODE,
+      version: "10.x"
+    });
 
     expect(binding).toMatchObject({
       type: "http",

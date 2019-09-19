@@ -4,6 +4,9 @@ import rimraf from "rimraf";
 import Serverless from "serverless";
 import { FunctionMetadata, Utils } from "../shared/utils";
 import { BaseService } from "./baseService";
+import { SupportedRuntimeLanguage } from "../models/serverless";
+import { constants } from "../shared/constants";
+import configConstants from "../config";
 
 /**
  * Adds service packing support
@@ -30,8 +33,13 @@ export class PackageService extends BaseService {
         const metaData = Utils.getFunctionMetaData(functionName, this.serverless);
         return this.createBinding(functionName, metaData);
       });
-
     await Promise.all(createEventsPromises);
+
+    if (this.config.provider.functionRuntime.language === SupportedRuntimeLanguage.PYTHON) {
+      const { funcCoreTools, funcCoreToolsPackArgs } = configConstants
+      await Utils.spawn(this.serverless, funcCoreTools, funcCoreToolsPackArgs);
+      
+    }
   }
 
   /**
@@ -76,6 +84,11 @@ export class PackageService extends BaseService {
         fs.unlinkSync(filePath);
       }
 
+      const pythonHandlerName = path.join(functionName, constants.pythonHandlerName);
+      if (fs.existsSync(pythonHandlerName)) {
+        fs.unlinkSync(pythonHandlerName);
+      }
+
       // Delete function folder if empty
       const items = fs.readdirSync(functionName);
       if (items.length === 0) {
@@ -109,9 +122,17 @@ export class PackageService extends BaseService {
       fs.mkdirSync(functionDirPath);
     }
 
-    const functionJsonString = this.stringify(functionJSON);
-    fs.writeFileSync(path.join(functionDirPath, "function.json"), functionJsonString);
+    if (this.config.provider.functionRuntime.language === SupportedRuntimeLanguage.PYTHON) {
+      const handlerContents = fs.readFileSync(path.join(functionDirPath, functionJSON.scriptFile));
+      const { pythonHandlerName } = constants
+      fs.writeFileSync(path.join(functionDirPath, pythonHandlerName), handlerContents);
+      functionJSON.scriptFile = pythonHandlerName;
+    }
 
+    const functionJsonString = this.stringify(functionJSON);
+
+    fs.writeFileSync(path.join(functionDirPath, "function.json"), functionJsonString);
+    
     return Promise.resolve();
   }
 }

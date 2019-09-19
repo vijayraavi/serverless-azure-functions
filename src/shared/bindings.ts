@@ -1,5 +1,6 @@
 import Serverless from "serverless";
 import { constants } from "./constants";
+import { FunctionRuntime, SupportedRuntimeLanguage } from "../models/serverless";
 
 const bindingsJson = require("./bindings.json"); // eslint-disable-line @typescript-eslint/no-var-requires
 
@@ -57,12 +58,12 @@ export class BindingUtils {
     return bindingUserSettingsMetaData;
   }
 
-  public static getHttpOutBinding() {
+  public static getHttpOutBinding(functionRuntime: FunctionRuntime) {
     const binding = {};
 
     binding[constants.type] = "http";
     binding[constants.direction] = constants.outDirection;
-    binding[constants.name] = "res";
+    binding[constants.name] = (functionRuntime.language === SupportedRuntimeLanguage.PYTHON) ? "$return" : "res";
 
     return binding;
   }
