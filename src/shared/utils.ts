@@ -1,8 +1,9 @@
-import { relative } from "path";
+import { relative, join } from "path";
 import Serverless from "serverless";
-import { ServerlessAzureFunctionConfig, ServerlessAzureConfig } from "../models/serverless";
+import { ServerlessAzureFunctionConfig, ServerlessAzureConfig, FunctionRuntime } from "../models/serverless";
 import { BindingUtils } from "./bindings";
 import { constants } from "./constants";
+import { SpawnOptions, spawn } from "child_process";
 
 export interface FunctionMetadata {
   entryPoint: any;
@@ -78,8 +79,10 @@ export class Utils {
       bindings.push(BindingUtils.getBinding(bindingType, bindingSettings, bindingUserSettings));
     }
 
+    const functionRuntime: FunctionRuntime = serverless.service.provider["functionRuntime"]
+
     if (bindingType === constants.httpTrigger) {
-      bindings.push(BindingUtils.getHttpOutBinding());
+      bindings.push(BindingUtils.getHttpOutBinding(functionRuntime));
     }
 
     functionsJson.bindings = bindings;
@@ -186,6 +189,50 @@ export class Utils {
   public static wait(time: number = 1000) {
     return new Promise((resolve) => {
       setTimeout(resolve, time);
+    });
+  }
+
+  /**
+   * Spawn a Node child process with predefined environment variables
+   * @param command CLI Command - NO ARGS
+   * @param spawnArgs Array of arguments for CLI command
+   */
+  public static spawn(serverless: Serverless, command: string, spawnArgs?: string[], onSigInt?: any): Promise<void> {
+    // Run command from local node_modules
+    command = join(
+      serverless.config.servicePath,
+      "node_modules",
+      ".bin",
+      command
+    );
+    
+    // Append .cmd if running on windows
+    if (process.platform === "win32") {
+      command += ".cmd";
+    }
+
+    const env = {
+      // Inherit environment from current process, most importantly, the PATH
+      ...process.env,
+      // Environment variables from serverless config are king
+      ...serverless.service.provider["environment"],
+    }
+    serverless.cli.log(`Spawning process '${command} ${spawnArgs.join(" ")}'`);
+    return new Promise(async (resolve, reject) => {
+      const spawnOptions: SpawnOptions = { env, stdio: "inherit" };
+      const childProcess = spawn(command, spawnArgs, spawnOptions);
+
+      if (onSigInt) {
+        process.on("SIGINT", onSigInt);
+      }
+
+      childProcess.on("exit", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject();
+        }
+      });
     });
   }
 }
