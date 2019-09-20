@@ -1,3 +1,5 @@
+import { SupportedRuntimeLanguage } from "./models/serverless";
+
 export const configConstants = {
   bearer: "Bearer ",
   deploymentConfig: {
@@ -42,6 +44,9 @@ export const configConstants = {
     prefix: "sls",
     localPort: 7071,
   },
+  linuxOnlyRuntimes: [
+    SupportedRuntimeLanguage.PYTHON
+  ]
 };
 
 export default configConstants;

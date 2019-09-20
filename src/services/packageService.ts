@@ -37,7 +37,8 @@ export class PackageService extends BaseService {
 
     if (this.config.provider.functionRuntime.language === SupportedRuntimeLanguage.PYTHON) {
       const { funcCoreTools, funcCoreToolsPackArgs } = configConstants
-      await Utils.spawn(this.serverless, funcCoreTools, funcCoreToolsPackArgs );
+      await Utils.spawn(this.serverless, funcCoreTools, funcCoreToolsPackArgs);
+      
     }
   }
 

@@ -1,6 +1,20 @@
-import { ArmParameters, ArmParamType, ArmResourceTemplate, ArmResourceTemplateGenerator } from "../../models/armTemplates";
-import { FunctionAppConfig, ServerlessAzureConfig, SupportedRuntimeLanguage } from "../../models/serverless";
+import { ArmParameters, ArmParamType, ArmResourceTemplate, ArmResourceTemplateGenerator, ArmTemplateParameter } from "../../models/armTemplates";
+import { FunctionAppConfig, ServerlessAzureConfig, SupportedRuntimeLanguage, FunctionAppOS } from "../../models/serverless";
 import { AzureNamingService, AzureNamingServiceOptions } from "../../services/namingService";
+
+
+export interface FunctionAppParameters extends ArmParameters {
+  functionAppName: ArmTemplateParameter;
+  functionAppNodeVersion: ArmTemplateParameter;
+  functionAppWorkerRuntime: ArmTemplateParameter;
+  functionAppExtensionVersion: ArmTemplateParameter;
+  functionAppRunFromPackage?: ArmTemplateParameter;
+  storageAccountName?: ArmTemplateParameter;
+  appInsightsName?: ArmTemplateParameter;
+  location?: ArmTemplateParameter;
+  functionAppKind: ArmTemplateParameter;
+  functionAppReserved: ArmTemplateParameter;
+}
 
 export class FunctionAppResource implements ArmResourceTemplateGenerator {
   public static getResourceName(config: ServerlessAzureConfig) {
@@ -16,62 +30,68 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
   }
 
   public getTemplate(): ArmResourceTemplate {
+    const parameters: FunctionAppParameters = {
+      functionAppRunFromPackage: {
+        defaultValue: "1",
+        type: ArmParamType.String
+      },
+      functionAppName: {
+        defaultValue: "",
+        type: ArmParamType.String
+      },
+      functionAppNodeVersion: {
+        defaultValue: "",
+        type: ArmParamType.String
+      },
+      functionAppWorkerRuntime: {
+        defaultValue: SupportedRuntimeLanguage.NODE,
+        type: ArmParamType.String
+      },
+      functionAppExtensionVersion: {
+        defaultValue: "~2",
+        type: ArmParamType.String
+      },
+      storageAccountName: {
+        defaultValue: "",
+        type: ArmParamType.String
+      },
+      appInsightsName: {
+        defaultValue: "",
+        type: ArmParamType.String
+      },
+      location: {
+        defaultValue: "",
+        type: ArmParamType.String
+      },
+      functionAppKind: {
+        defaultValue: "functionapp",
+        type: ArmParamType.String
+      },
+      functionAppReserved: {
+        defaultValue: false,
+        type: ArmParamType.Bool
+      }
+    }
+
     return {
       "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
       "contentVersion": "1.0.0.0",
-      "parameters": {
-        "functionAppRunFromPackage": {
-          "defaultValue": "1",
-          "type": ArmParamType.String
-        },
-        "functionAppName": {
-          "defaultValue": "",
-          "type": ArmParamType.String
-        },
-        "functionAppNodeVersion": {
-          "defaultValue": "",
-          "type": ArmParamType.String
-        },
-        "functionAppPythonVersion": {
-          "defaultValue": "",
-          "type": ArmParamType.String
-        },
-        "functionAppWorkerRuntime": {
-          "defaultValue": "node",
-          "type": ArmParamType.String
-        },
-        "functionAppExtensionVersion": {
-          "defaultValue": "~2",
-          "type": ArmParamType.String
-        },
-        "storageAccountName": {
-          "defaultValue": "",
-          "type": ArmParamType.String
-        },
-        "appInsightsName": {
-          "defaultValue": "",
-          "type": ArmParamType.String
-        },
-        "location": {
-          "defaultValue": "",
-          "type": ArmParamType.String
-        },
-      },
+      parameters,
       "variables": {},
       "resources": [
         {
-          "type": "Microsoft.Web/sites",
+          type: "Microsoft.Web/sites",
           "apiVersion": "2016-03-01",
           "name": "[parameters('functionAppName')]",
           "location": "[parameters('location')]",
           "identity": {
-            "type": ArmParamType.SystemAssigned
+            type: ArmParamType.SystemAssigned
           },
           "dependsOn": [
             "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
             "[concat('microsoft.insights/components/', parameters('appInsightsName'))]"
           ],
-          "kind": "functionapp",
+          "kind": "[parameters('functionAppKind')]",
           "properties": {
             "siteConfig": {
               "appSettings": [
@@ -109,6 +129,7 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
                 }
               ]
             },
+            "reserved": "[parameters('functionAppReserved')]",
             "name": "[parameters('functionAppName')]",
             "clientAffinityEnabled": false,
             "hostingEnvironment": ""
@@ -118,14 +139,14 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
     };
   }
 
-  public getParameters(config: ServerlessAzureConfig): ArmParameters {
+  public getParameters(config: ServerlessAzureConfig): FunctionAppParameters {
     const resourceConfig: FunctionAppConfig = {
       ...config.provider.functionApp,
     };
 
-    const { functionRuntime } = config.provider;
+    const { functionRuntime, os } = config.provider;
 
-    return {
+    const parameters = {
       functionAppName: {
         value: FunctionAppResource.getResourceName(config),
       },
@@ -136,19 +157,20 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
           :
           ""
       },
-      functionAppPythonVersion: {
-        value: (functionRuntime.language === SupportedRuntimeLanguage.PYTHON)
-          ?
-          functionRuntime.version
-          :
-          ""
-      },
       functionAppWorkerRuntime: {
         value: functionRuntime.language,
       },
       functionAppExtensionVersion: {
         value: resourceConfig.extensionVersion,
+      },
+      functionAppKind: {
+        value: (os === FunctionAppOS.LINUX) ? "functionapp,linux" : "functionapp"
+      },
+      functionAppReserved: {
+        value: (os === FunctionAppOS.LINUX)
       }
     };
+    console.log(JSON.stringify(parameters, null, 2));
+    return parameters;
   }
 }

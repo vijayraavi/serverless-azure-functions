@@ -53,6 +53,7 @@ export interface ServerlessAzureProvider {
   armTemplate?: ArmTemplateConfig;
   keyVaultConfig?: AzureKeyVaultConfig;
   runtime: string;
+  os: FunctionAppOS;
   functionRuntime?: FunctionRuntime;
 }
 

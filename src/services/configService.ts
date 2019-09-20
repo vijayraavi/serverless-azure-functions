@@ -1,7 +1,7 @@
 import Serverless from "serverless";
 import Service from "serverless/classes/Service";
 import configConstants from "../config";
-import { ServerlessAzureConfig, ServerlessAzureFunctionConfig, SupportedRuntimeLanguage, FunctionRuntime } from "../models/serverless";
+import { ServerlessAzureConfig, ServerlessAzureFunctionConfig, SupportedRuntimeLanguage, FunctionRuntime, FunctionAppOS } from "../models/serverless";
 import { constants } from "../shared/constants";
 import { Utils } from "../shared/utils";
 import { AzureNamingService, AzureNamingServiceOptions } from "./namingService";
@@ -150,7 +150,8 @@ export class ConfigService {
       tenantId,
       appId,
       deployment,
-      runtime
+      runtime,
+      os
     } = config.provider;
 
     const options: AzureNamingServiceOptions = {
@@ -173,18 +174,25 @@ export class ConfigService {
         || tenantId,
       appId: this.getOption(constants.variableKeys.appId)
         || process.env.AZURE_CLIENT_ID
-        || appId
+        || appId,
+      deployment: {
+        ...configConstants.deploymentConfig,
+        ...deployment
+      },
+      functionRuntime: this.getRuntime(runtime),
+      os: os || FunctionAppOS.WINDOWS
     }
+
     config.provider.resourceGroup = (
       this.getOption("resourceGroup", config.provider.resourceGroup)
     ) || AzureNamingService.getResourceName(options);
 
-    config.provider.deployment = {
-      ...configConstants.deploymentConfig,
-      ...deployment
-    }
+    const { language } = config.provider.functionRuntime
 
-    config.provider.functionRuntime = this.getRuntime(runtime)
+    if (configConstants.linuxOnlyRuntimes.includes(language)) {
+      this.serverless.cli.log(`${language} only supports linux function apps`);
+      config.provider.os = FunctionAppOS.LINUX
+    }
 
     return config;
   }
