@@ -1,19 +1,20 @@
-import { ArmParameters, ArmParamType, ArmResourceTemplate, ArmResourceTemplateGenerator, ArmTemplateParameter } from "../../models/armTemplates";
+import { ArmParameters, ArmParamType, ArmResourceTemplate, ArmResourceTemplateGenerator, ArmParameter, DefaultArmParams } from "../../models/armTemplates";
 import { FunctionAppConfig, ServerlessAzureConfig, SupportedRuntimeLanguage, FunctionAppOS } from "../../models/serverless";
 import { AzureNamingService, AzureNamingServiceOptions } from "../../services/namingService";
 
 
-export interface FunctionAppParameters extends ArmParameters {
-  functionAppName: ArmTemplateParameter;
-  functionAppNodeVersion: ArmTemplateParameter;
-  functionAppWorkerRuntime: ArmTemplateParameter;
-  functionAppExtensionVersion: ArmTemplateParameter;
-  functionAppRunFromPackage?: ArmTemplateParameter;
-  storageAccountName?: ArmTemplateParameter;
-  appInsightsName?: ArmTemplateParameter;
-  location?: ArmTemplateParameter;
-  functionAppKind: ArmTemplateParameter;
-  functionAppReserved: ArmTemplateParameter;
+export interface FunctionAppParameters extends DefaultArmParams {
+  functionAppName: ArmParameter;
+  functionAppNodeVersion: ArmParameter;
+  functionAppWorkerRuntime: ArmParameter;
+  functionAppExtensionVersion: ArmParameter;
+  functionAppKind: ArmParameter;
+  functionAppReserved: ArmParameter;
+  linuxFxVersion: ArmParameter;
+
+  storageAccountName?: ArmParameter;
+  functionAppRunFromPackage?: ArmParameter;
+  appInsightsName?: ArmParameter;
 }
 
 export class FunctionAppResource implements ArmResourceTemplateGenerator {
@@ -70,6 +71,10 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
       functionAppReserved: {
         defaultValue: false,
         type: ArmParamType.Bool
+      },
+      linuxFxVersion: {
+        defaultValue: "",
+        type: ArmParamType.String
       }
     }
 
@@ -125,9 +130,10 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
                 },
                 {
                   "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-                  "value": "[reference(concat('microsoft.insights/components/', parameters('appInsightsName'))).InstrumentationKey]"
+                  "value": "[reference(concat('microsoaft.insights/components/', parameters('appInsightsName'))).InstrumentationKey]"
                 }
-              ]
+              ],
+              linuxFxVersion: "[parameters('linuxFxVersion')]"
             },
             "reserved": "[parameters('functionAppReserved')]",
             "name": "[parameters('functionAppName')]",
@@ -139,14 +145,14 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
     };
   }
 
-  public getParameters(config: ServerlessAzureConfig): FunctionAppParameters {
+  public getParameters(config: ServerlessAzureConfig): ArmParameters {
     const resourceConfig: FunctionAppConfig = {
       ...config.provider.functionApp,
     };
 
     const { functionRuntime, os } = config.provider;
 
-    const parameters = {
+    const parameters: FunctionAppParameters = {
       functionAppName: {
         value: FunctionAppResource.getResourceName(config),
       },
@@ -155,7 +161,7 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
           ?
           functionRuntime.version
           :
-          ""
+          undefined
       },
       functionAppWorkerRuntime: {
         value: functionRuntime.language,
@@ -168,9 +174,15 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
       },
       functionAppReserved: {
         value: (os === FunctionAppOS.LINUX)
-      }
+      },
+      linuxFxVersion: {
+        value: (functionRuntime.language === SupportedRuntimeLanguage.PYTHON)
+          ?
+          "DOCKER|microsoft/azure-functions-python3.6:2.0"
+          :
+          undefined
+      },
     };
-    console.log(JSON.stringify(parameters, null, 2));
-    return parameters;
+    return parameters as unknown as ArmParameters;
   }
 }

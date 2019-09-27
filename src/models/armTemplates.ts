@@ -46,13 +46,17 @@ export interface ArmResourceTemplate {
 }
 
 export interface ArmParameters {
-  [key: string]: ArmTemplateParameter;
+  [key: string]: ArmParameter;
 }
 
-export interface ArmTemplateParameter {
+export interface ArmParameter {
   type?: ArmParamType;
-    value?: string | number | boolean;
-    defaultValue?: string | number | boolean;
+  value?: string | number | boolean;
+  defaultValue?: string | number | boolean;
+}
+
+export interface DefaultArmParams {
+  location?: ArmParameter;
 }
 
 /**
