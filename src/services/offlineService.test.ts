@@ -37,16 +37,19 @@ describe("Offline Service", () => {
     await service.build();
     const calls = writeFileSpy.mock.calls;
     const functionNames = sls.service.getAllFunctions();
-    expect(calls).toHaveLength(functionNames.length + 1);
+    expect(calls).toHaveLength(functionNames.length + 2);
     for (let i = 0; i < functionNames.length; i++) {
       const name = functionNames[i];
       expect(calls[i][0]).toEqual(`${name}${path.sep}function.json`)
       expect(
         JSON.parse(calls[i][1])
       ).toEqual(
-        MockFactory.createTestBindingsObject(`..${path.sep}${name}.js`)
+        MockFactory.createTestBindingsObject(`../${name}.js`)
       );
     }
+    expect(calls[functionNames.length][0]).toEqual(".funcignore");
+    expect(calls[functionNames.length + 1][0]).toEqual("local.settings.json");
+
     writeFileSpy.mockRestore();
   });
 
@@ -60,7 +63,7 @@ describe("Offline Service", () => {
     });
     await service.build();
     const calls = writeFileSpy.mock.calls;
-    expect(calls).toHaveLength(functionNames.length);
+    expect(calls).toHaveLength(functionNames.length + 1);
   });
 
   it("cleans up functions files", async () => {

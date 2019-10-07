@@ -1,13 +1,14 @@
-import Serverless from "serverless";
-import mockFs from "mock-fs";
 import fs from "fs";
+import mockFs from "mock-fs";
+import mockSpawn from "mock-spawn";
 import path from "path";
-import { PackageService } from "./packageService";
-import { MockFactory } from "../test/mockFactory";
+import rimraf from "rimraf";
+import Serverless from "serverless";
 import { FunctionMetadata } from "../shared/utils";
+import { MockFactory } from "../test/mockFactory";
+import { PackageService } from "./packageService";
 
 jest.mock("rimraf");
-import rimraf from "rimraf";
 
 describe("Package Service", () => {
   let sls: Serverless;
@@ -94,7 +95,7 @@ describe("Package Service", () => {
       entryPoint: "handler",
       handlerPath: "src/handlers/hello",
       params: {
-        functionsJson: {
+        functionJson: {
           bindings: [
             MockFactory.createTestHttpBinding("out"),
             MockFactory.createTestHttpBinding("in"),
@@ -140,7 +141,7 @@ describe("Package Service", () => {
       entryPoint: "handler",
       handlerPath: "src/handlers/eventhubHandler",
       params: {
-        functionsJson: {
+        functionJson: {
           bindings: [
             MockFactory.createTestEventHubBinding("in"),
           ]
@@ -180,7 +181,7 @@ describe("Package Service", () => {
       entryPoint: "handler",
       handlerPath: "src/handlers/hello",
       params: {
-        functionsJson: {
+        functionJson: {
           bindings: [
             MockFactory.createTestHttpBinding("out"),
             MockFactory.createTestHttpBinding("in"),
@@ -243,5 +244,90 @@ describe("Package Service", () => {
 
     mkDirSpy.mockRestore();
     copyFileSpy.mockRestore();
+  });
+
+  describe("Python packages", () => {
+    let mySpawn;
+    let packageService: PackageService;
+    let functions: string[];
+
+    beforeEach(() => {
+      mockFs({
+        ".funcignore": "",
+        "serverless-azure-functions.zip": "",
+        "hello" : {
+          "__pycache__": {
+            "file.pyc": ""
+          },
+          "__init__.py": "",
+          "function.json": ""
+        },
+        "goodbye" : {
+          "__pycache__": {
+            "file.pyc": ""
+          },
+          "__init__.py": "",
+          "function.json": "",
+        },
+      });
+      
+      mySpawn = mockSpawn();
+      require("child_process").spawn = mySpawn;
+      mySpawn.setDefault(mySpawn.simple(0, "Exit code"));
+
+      const sls = MockFactory.createTestServerless();
+      functions = sls.service.getAllFunctions();
+      sls.service.provider.runtime = "python3.6";
+      packageService = new PackageService(sls, {} as any);
+    });
+
+    afterEach(() => {
+      mockFs.restore();
+    });
+
+    function calledWithArgs(mockFn: any, values: string[]) {
+      const calls = mockFn.mock.calls;
+      for (const value of values) {
+        expect(calls.find((call) => call[0] === value)).toBeTruthy();
+      }
+    }
+
+    it("generates python files", async () => {
+      const writeSpy = jest.spyOn(fs, "writeFileSync");
+      await packageService.createBindings();
+      calledWithArgs(writeSpy, [
+        ".funcignore",
+        ...functions.map((name) => `${name}${path.sep}__init__.py`),
+        ...functions.map((name) => `${name}${path.sep}function.json`)
+      ]);
+    });
+
+    it("creates a python package", async () => {
+      Object.defineProperty(process, "platform", {
+        value: "darwin",
+        writable: true,
+      });
+
+      await packageService.createPackage();
+      const calls = mySpawn.calls;
+      expect(calls).toHaveLength(1);
+      const call = calls[0];
+      expect(call.command).toEqual(path.join("node_modules", ".bin", "func"));
+      expect(call.args).toEqual(["pack"]);
+    });
+
+    it("cleans up python files", async () => {
+      const rimrafSpy = jest.spyOn(rimraf, "sync");
+      const unlinkSpy = jest.spyOn(fs, "unlinkSync");
+      await packageService.cleanUp();
+      calledWithArgs(unlinkSpy, [
+        ".funcignore",
+        ...functions.map((name) => `${name}${path.sep}__init__.py`),
+        ...functions.map((name) => `${name}${path.sep}function.json`)
+      ])
+      calledWithArgs(rimrafSpy, [
+        ...functions.map((name) => path.join(name, "__pycache__")),
+      ])
+    });
   });
 });
