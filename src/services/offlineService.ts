@@ -5,6 +5,7 @@ import configConstants from "../config";
 import { BaseService } from "./baseService";
 import { PackageService } from "./packageService";
 import path from "path";
+import { Utils } from "../shared/utils";
 
 export class OfflineService extends BaseService {
 
@@ -50,40 +51,11 @@ export class OfflineService extends BaseService {
    * Spawn `func host start` from core func tools
    */
   public async start() {
-    await this.spawn(configConstants.funcCoreTools, configConstants.funcCoreToolsArgs);
-  }
-
-  /**
-   * Spawn a Node child process with predefined environment variables
-   * @param command CLI Command - NO ARGS
-   * @param spawnArgs Array of arguments for CLI command
-   */
-  private spawn(command: string, spawnArgs?: string[]): Promise<void> {
-    // Run command from local node_modules
-    command = path.join(
-      this.serverless.config.servicePath,
-      "node_modules",
-      ".bin",
-      command
-    );
-    
-    // Append .cmd if running on windows
-    if (process.platform === "win32") {
-      command += ".cmd";
-    }
-
-    const env = {
-      // Inherit environment from current process, most importantly, the PATH
-      ...process.env,
-      // Environment variables from serverless config are king
-      ...this.serverless.service.provider["environment"],
-    }
-    this.log(`Spawning process '${command} ${spawnArgs.join(" ")}'`);
-    return new Promise(async (resolve, reject) => {
-      const spawnOptions: SpawnOptions = { env, stdio: "inherit" };
-      const childProcess = spawn(command, spawnArgs, spawnOptions);
-
-      process.on("SIGINT", async () => {
+    await Utils.spawn({
+      serverless: this.serverless,
+      command: configConstants.funcCoreTools,
+      commandArgs: configConstants.funcCoreToolsArgs,
+      onSigInt: async () => {
         try {
           if (this.getOption("nocleanup")) {
             this.log("Skipping offline file cleanup...");
@@ -96,15 +68,7 @@ export class OfflineService extends BaseService {
         } finally {
           process.exit();
         }
-      });
-
-      childProcess.on("exit", (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject();
-        }
-      });
+      }
     });
   }
 }

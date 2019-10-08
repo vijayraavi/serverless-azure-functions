@@ -1,13 +1,21 @@
-import { relative } from "path";
+import { relative, join } from "path";
 import Serverless from "serverless";
-import { ServerlessAzureFunctionConfig, ServerlessAzureConfig } from "../models/serverless";
+import { ServerlessAzureConfig, ServerlessAzureFunctionConfig } from "../models/serverless";
 import { BindingUtils } from "./bindings";
 import { constants } from "./constants";
+import { SpawnOptions, spawn } from "child_process";
 
 export interface FunctionMetadata {
   entryPoint: any;
   handlerPath: any;
   params: any;
+}
+
+export interface ServerlessSpawnOptions {
+  serverless: Serverless;
+  command: string;
+  commandArgs: string[];
+  onSigInt?: () => void;
 }
 
 export class Utils {
@@ -157,7 +165,7 @@ export class Utils {
   /**
    * Runs an operation with auto retry policy
    * @param operation The operation to run
-   * @param maxRetries The max number or retreis
+   * @param maxRetries The max number or retries
    * @param retryWaitInterval The time to wait between retries
    */
   public static async runWithRetry<T>(operation: (retry?: number) => Promise<T>, maxRetries: number = 3, retryWaitInterval: number = 1000) {
@@ -186,6 +194,52 @@ export class Utils {
   public static wait(time: number = 1000) {
     return new Promise((resolve) => {
       setTimeout(resolve, time);
+    });
+  }
+
+    /**
+   * Spawn a Node child process with predefined environment variables
+   * @param command CLI Command - NO ARGS
+   * @param spawnArgs Array of arguments for CLI command
+   */
+  public static spawn(options: ServerlessSpawnOptions): Promise<void> {
+    const { serverless, commandArgs, onSigInt } = options;
+    let { command } = options;
+    // Run command from local node_modules
+    command = join(
+      serverless.config.servicePath,
+      "node_modules",
+      ".bin",
+      command
+    );
+    
+    // Append .cmd if running on windows
+    if (process.platform === "win32") {
+      command += ".cmd";
+    }
+
+    const env = {
+      // Inherit environment from current process, most importantly, the PATH
+      ...process.env,
+      // Environment variables from serverless config are king
+      ...serverless.service.provider["environment"],
+    }
+    serverless.cli.log(`Spawning process '${command} ${commandArgs.join(" ")}'`);
+    return new Promise(async (resolve, reject) => {
+      const spawnOptions: SpawnOptions = { env, stdio: "inherit" };
+      const childProcess = spawn(command, commandArgs, spawnOptions);
+
+      if (onSigInt) {
+        process.on("SIGINT", onSigInt);
+      }        
+
+      childProcess.on("exit", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject();
+        }
+      });
     });
   }
 }
