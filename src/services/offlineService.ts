@@ -54,7 +54,7 @@ export class OfflineService extends BaseService {
     await Utils.spawn({
       serverless: this.serverless,
       command: configConstants.funcCoreTools,
-      commandArgs: configConstants.funcCoreToolsArgs,
+      commandArgs: configConstants.funcCoreToolsStartArgs,
       onSigInt: async () => {
         try {
           if (this.getOption("nocleanup")) {

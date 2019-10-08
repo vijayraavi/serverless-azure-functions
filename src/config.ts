@@ -22,7 +22,8 @@ export const configConstants = {
   functionsAdminApiPath: "/admin/functions/",
   functionsApiPath: "/api/functions",
   funcCoreTools: "func",
-  funcCoreToolsArgs: ["host", "start"],
+  funcCoreToolsStartArgs: ["host", "start"],
+  funcCoreToolsPackArgs: ["pack"],
   funcConsoleColor: "blue",
   runFromPackageSetting: "WEBSITE_RUN_FROM_PACKAGE",
   jsonContentType: "application/json",
@@ -52,7 +53,18 @@ export const configConstants = {
     python: {
       "3.6": "DOCKER|microsoft/azure-functions-python3.6:2.0"
     }
-  }
+  },
+  defaultFuncIgnore: [
+    "package.json",
+    "package-lock.json",
+    "README.md",
+    ".gitignore",
+    ".git/**",
+    ".vscode/**",
+    "node_modules/**",
+    "local.settings.json",
+    ".serverless/**",
+  ]
 };
 
 export default configConstants;

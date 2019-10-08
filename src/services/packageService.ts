@@ -6,6 +6,7 @@ import { FunctionMetadata, Utils } from "../shared/utils";
 import { BaseService } from "./baseService";
 import { SupportedRuntimeLanguage } from "../models/serverless";
 import { inspect } from "util";
+import configConstants from "../config";
 
 /**
  * Adds service packing support
@@ -32,8 +33,30 @@ export class PackageService extends BaseService {
         const metaData = Utils.getFunctionMetaData(functionName, this.serverless);
         return this.createBinding(functionName, metaData);
       });
+    if (this.isPython) {
+      this.generateFuncIgnore();
+    }
 
     await Promise.all(createEventsPromises);
+  }
+
+  public async createPackage() {
+    if (this.isPython) {
+      await Utils.spawn({
+        serverless: this.serverless,
+        command: configConstants.funcCoreTools,
+        commandArgs: configConstants.funcCoreToolsPackArgs,
+      });
+      const { servicePath } = this.serverless.config;
+      const artifact = path.join(servicePath, path.basename(process.cwd()) + ".zip");
+      this.log(artifact);
+      const serverlessDir = path.join(servicePath, ".serverless")
+      if (!fs.existsSync(serverlessDir)) {
+        fs.mkdirSync(serverlessDir);
+      }
+      fs.renameSync(artifact, path.join(serverlessDir, `${this.serviceName}.zip`));
+      this.options["package"] = path.join(".serverless", `${this.serviceName}.zip`);
+    }
   }
 
   /**
@@ -71,26 +94,30 @@ export class PackageService extends BaseService {
    * Cleans up generated function.json files after packaging has completed
    */
   public cleanUp() {
-    const filesToRemove = [
+    const functionFilesToRemove = [
       "function.json",
       "__init__.py"
     ];
 
-    const foldersToRemove = [
+    const functionFoldersToRemove = [
       "__pycache__"
+    ]
+
+    const rootFilesToRemove = [
+      ".funcignore"
     ]
 
     this.serverless.service.getAllFunctions().map((functionName) => {
       // Delete function.json if exists in function folder
 
-      filesToRemove.forEach((fileToRemove) => {
+      functionFilesToRemove.forEach((fileToRemove) => {
         const filePath = path.join(functionName, fileToRemove);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
       });
 
-      foldersToRemove.forEach((folderToRemove) => {
+      functionFoldersToRemove.forEach((folderToRemove) => {
         const folderPath = path.join(functionName, folderToRemove);
         if (fs.existsSync(folderPath)) {
           rimraf.sync(folderPath);
@@ -103,6 +130,13 @@ export class PackageService extends BaseService {
         fs.rmdirSync(functionName);
       }
     });
+
+    for (const file of rootFilesToRemove) {
+      const filePath = path.join(this.serverless.config.servicePath, file);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }    
 
     return Promise.resolve();
   }
@@ -117,7 +151,7 @@ export class PackageService extends BaseService {
     fs.writeFileSync(path.join(functionDirPath, "function.json"), this.stringify(functionJSON));
 
     if (this.runtime.language === SupportedRuntimeLanguage.PYTHON) {
-      this.additionalPythonSteps(functionName, functionDirPath);
+      this.generatePythonShim(functionName, functionDirPath);
     }
     return Promise.resolve();
   }
@@ -156,18 +190,27 @@ export class PackageService extends BaseService {
     return functionDirPath;
   }
 
-  private additionalPythonSteps(functionName: string, functionDirPath: string) {
+  private generateFuncIgnore() {
+    const exclude = this.config.package.exclude || []
+    fs.writeFileSync(
+      path.join(this.serverless.config.servicePath, ".funcignore"),
+      exclude
+        .concat(configConstants.defaultFuncIgnore)
+        .concat([
+          this.configService.getConfigFile()
+        ])
+        .join("\n")  
+    )
+  }
+
+  private generatePythonShim(functionName: string, functionDirPath: string) {
     const handlerConfig = this.configService.getFunctionConfig()[functionName].handler
     const [ handlerPath, entryPoint ] = handlerConfig.split(".")
-    
-    fs.writeFileSync(path.join(functionDirPath, "__init__.py"), 
-
-    `from __app__.${handlerPath.replace(/\//g, ".")} import ${entryPoint} as entry_point
+    const shim = `from __app__.${handlerPath.replace(/\//g, ".")} import ${entryPoint} as entry_point
 
 
 def main(req):
-  return entry_point(req)
-    `);
-
+  return entry_point(req)\n`
+    fs.writeFileSync(path.join(functionDirPath, "__init__.py"), shim);
   }
 }

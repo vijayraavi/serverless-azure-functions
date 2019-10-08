@@ -4,6 +4,8 @@ import AzureProvider from "../../provider/azureProvider";
 import { PackageService } from "../../services/packageService";
 import { AzureBasePlugin } from "../azureBasePlugin";
 import { ServerlessCliCommand } from "../../models/serverless";
+import { Utils } from "../../shared/utils";
+import configConstants from "../../config";
 
 export class AzurePackagePlugin extends AzureBasePlugin {
   private bindingsCreated: boolean = false;
@@ -13,9 +15,13 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     super(serverless, options);
     this.hooks = {
       "before:package:setupProviderConfiguration": this.setupProviderConfiguration.bind(this),
+      "package:createDeploymentArtifacts": this.createCustomArtifact.bind(this),
       "before:webpack:package:packageModules": this.webpack.bind(this),
       "after:package:finalize": this.finalize.bind(this),
     };
+    if (serverless.service.provider.runtime.includes("python")) {
+      this.hooks["hook:to:override"] = this.createCustomArtifact.bind(this);
+    }
   }
 
   private async setupProviderConfiguration(): Promise<void> {
@@ -31,6 +37,8 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     }
     packageService.cleanUpServerlessDir();
     await packageService.createBindings();
+    await packageService.createPackage();
+    
     this.bindingsCreated = true;
 
     return Promise.resolve();
@@ -48,6 +56,13 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     }
 
     await packageService.prepareWebpack();
+  }
+
+  private async createCustomArtifact(): Promise<void> {
+    if (this.serverless.service.provider.runtime.includes("python")) {
+      const packageService = new PackageService(this.serverless, this.options);
+      await packageService.createPackage();
+    }
   }
 
   /**
