@@ -4,6 +4,8 @@ import rimraf from "rimraf";
 import Serverless from "serverless";
 import { FunctionMetadata, Utils } from "../shared/utils";
 import { BaseService } from "./baseService";
+import { SupportedRuntimeLanguage } from "../models/serverless";
+import { inspect } from "util";
 
 /**
  * Adds service packing support
@@ -69,13 +71,32 @@ export class PackageService extends BaseService {
    * Cleans up generated function.json files after packaging has completed
    */
   public cleanUp() {
+    const filesToRemove = [
+      "function.json",
+      "__init__.py"
+    ];
+
+    const foldersToRemove = [
+      "__pycache__"
+    ]
+
     this.serverless.service.getAllFunctions().map((functionName) => {
       // Delete function.json if exists in function folder
-      const filePath = path.join(functionName, "function.json");
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
 
+      filesToRemove.forEach((fileToRemove) => {
+        const filePath = path.join(functionName, fileToRemove);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+
+      foldersToRemove.forEach((folderToRemove) => {
+        const folderPath = path.join(functionName, folderToRemove);
+        if (fs.existsSync(folderPath)) {
+          rimraf.sync(folderPath);
+        }
+      });
+      
       // Delete function folder if empty
       const items = fs.readdirSync(functionName);
       if (items.length === 0) {
@@ -90,9 +111,29 @@ export class PackageService extends BaseService {
    * Creates the function.json for for the specified function
    */
   public createBinding(functionName: string, functionMetadata: FunctionMetadata) {
-    const functionJSON = functionMetadata.params.functionsJson;
-    functionJSON.entryPoint = functionMetadata.entryPoint;
-    functionJSON.scriptFile = functionMetadata.handlerPath;
+    const functionJSON = this.getFunctionJson(functionName, functionMetadata);
+    const functionDirPath = this.makeFunctionDir(functionName);
+
+    fs.writeFileSync(path.join(functionDirPath, "function.json"), this.stringify(functionJSON));
+
+    if (this.runtime.language === SupportedRuntimeLanguage.PYTHON) {
+      this.additionalPythonSteps(functionName, functionDirPath);
+    }
+    return Promise.resolve();
+  }
+
+  private getFunctionJson(functionName: string, functionMetadata: FunctionMetadata) {
+    const functionJSON = functionMetadata.params.functionJson;
+    const { entryPoint, handlerPath } = functionMetadata;
+    functionJSON.entryPoint = entryPoint;
+    if (this.isPython) {
+      functionJSON.scriptFile = "__init__.py"
+      const index = (functionJSON.bindings as any[])
+        .findIndex((binding) => (!binding.direction || binding.direction === "out"));
+      functionJSON.bindings[index].name = "$return";
+    } else {
+      functionJSON.scriptFile = handlerPath;
+    }
     const functionObject = this.configService.getFunctionConfig()[functionName];
     const bindingAzureSettings = Utils.getIncomingBindingConfig(functionObject)["x-azure-settings"];
 
@@ -104,14 +145,29 @@ export class PackageService extends BaseService {
       functionJSON.bindings[index].route = bindingAzureSettings.route;
     }
 
+    return functionJSON;
+  }
+
+  private makeFunctionDir(functionName: string) {
     const functionDirPath = path.join(this.serverless.config.servicePath, functionName);
     if (!fs.existsSync(functionDirPath)) {
       fs.mkdirSync(functionDirPath);
     }
+    return functionDirPath;
+  }
 
-    const functionJsonString = this.stringify(functionJSON);
-    fs.writeFileSync(path.join(functionDirPath, "function.json"), functionJsonString);
+  private additionalPythonSteps(functionName: string, functionDirPath: string) {
+    const handlerConfig = this.configService.getFunctionConfig()[functionName].handler
+    const [ handlerPath, entryPoint ] = handlerConfig.split(".")
+    
+    fs.writeFileSync(path.join(functionDirPath, "__init__.py"), 
 
-    return Promise.resolve();
+    `from __app__.${handlerPath.replace(/\//g, ".")} import ${entryPoint} as entry_point
+
+
+def main(req):
+  return entry_point(req)
+    `);
+
   }
 }

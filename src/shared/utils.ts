@@ -6,9 +6,11 @@ import { constants } from "./constants";
 import { SpawnOptions, spawn } from "child_process";
 
 export interface FunctionMetadata {
-  entryPoint: any;
-  handlerPath: any;
-  params: any;
+  entryPoint: string;
+  handlerPath: string;
+  params: {
+    functionJson: any;
+  };
 }
 
 export interface ServerlessSpawnOptions {
@@ -26,7 +28,7 @@ export class Utils {
     let bindingSettings = [];
     let bindingUserSettings = {};
     let bindingType;
-    const functionsJson = { disabled: false, bindings: [] };
+    const functionJson = { disabled: false, bindings: [] };
     const functionObject = serverless.service.getFunction(functionName);
     const handler = functionObject.handler;
     const events = functionObject["events"];
@@ -90,8 +92,8 @@ export class Utils {
       bindings.push(BindingUtils.getHttpOutBinding());
     }
 
-    functionsJson.bindings = bindings;
-    params.functionsJson = functionsJson;
+    functionJson.bindings = bindings;
+    params.functionJson = functionJson;
 
     let { handlerPath, entryPoint } = Utils.getEntryPointAndHandlerPath(handler, config);
     if (functionObject["scriptFile"]) {

@@ -146,6 +146,8 @@ export interface ServerlessAzureConfig {
     individually: boolean;
     artifactDirectoryName: string;
     artifact: string;
+    exclude: string[];
+    include: string[];
   };
 }
 
