@@ -20,7 +20,12 @@ export class AzurePackagePlugin extends AzureBasePlugin {
       "after:package:finalize": this.finalize.bind(this),
     };
     if (serverless.service.provider.runtime.includes("python")) {
-      this.hooks["hook:to:override"] = this.createCustomArtifact.bind(this);
+      delete this.hooks["before:package:setupProviderConfiguration"];
+      delete this.serverless.pluginManager.hooks["package:setupProviderConfiguration"]
+      delete this.serverless.pluginManager.hooks["package:createDeploymentArtifacts"]
+
+      this.hooks["package:setupProviderConfiguration"] = this.setupProviderConfiguration.bind(this),
+      this.hooks["package:createDeploymentArtifacts"] = this.createCustomArtifact.bind(this);
     }
   }
 
@@ -37,7 +42,6 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     }
     packageService.cleanUpServerlessDir();
     await packageService.createBindings();
-    await packageService.createPackage();
     
     this.bindingsCreated = true;
 
@@ -48,6 +52,7 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     const packageService = new PackageService(this.serverless, this.options);
 
     if (this.getOption("package")) {
+      
       this.log("No need to perform webpack. Using pre-existing package");
       return Promise.resolve();
     }
