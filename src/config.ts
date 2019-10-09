@@ -51,7 +51,7 @@ export const configConstants = {
       "10": "DOCKER|microsoft/azure-functions/node:2.0"
     },
     python: {
-      "3.6": "DOCKER|microsoft/azure-functions-python3.6:2.0"
+      "3.6": "DOCKER|microsoft/azure-functions/python:2.0"
     }
   },
   defaultFuncIgnore: [
