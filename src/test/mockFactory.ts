@@ -659,7 +659,7 @@ export class MockFactory {
       cliOptions: null,
       commands: null,
       deprecatedEvents: null,
-      hooks: null,
+      hooks: {},
       loadAllPlugins: jest.fn(),
       loadCommand: jest.fn(),
       loadCommands: jest.fn(),

@@ -13,7 +13,6 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     super(serverless, options);
     this.hooks = {
       "before:package:setupProviderConfiguration": this.setupProviderConfiguration.bind(this),
-      "package:createDeploymentArtifacts": this.createCustomArtifact.bind(this),
       "before:webpack:package:packageModules": this.webpack.bind(this),
       "after:package:finalize": this.finalize.bind(this),
     };
@@ -64,10 +63,8 @@ export class AzurePackagePlugin extends AzureBasePlugin {
   }
 
   private async createCustomArtifact(): Promise<void> {
-    if (this.serverless.service.provider.runtime.includes("python")) {
-      const packageService = new PackageService(this.serverless, this.options);
-      await packageService.createPackage();
-    }
+    const packageService = new PackageService(this.serverless, this.options);
+    await packageService.createPackage();
   }
 
   /**

@@ -3,7 +3,7 @@ import Serverless from "serverless";
 import { ServerlessAzureConfig, ServerlessAzureFunctionConfig } from "../models/serverless";
 import { BindingUtils } from "./bindings";
 import { constants } from "./constants";
-import { SpawnOptions, spawn } from "child_process";
+import { SpawnOptions, spawn, StdioOptions } from "child_process";
 
 export interface FunctionMetadata {
   entryPoint: string;
@@ -17,6 +17,8 @@ export interface ServerlessSpawnOptions {
   serverless: Serverless;
   command: string;
   commandArgs: string[];
+  silent?: boolean;
+  stdio?: StdioOptions;
   onSigInt?: () => void;
 }
 
@@ -206,9 +208,9 @@ export class Utils {
    */
   public static spawn(options: ServerlessSpawnOptions): Promise<void> {
     const { serverless, commandArgs, onSigInt } = options;
-    let { command } = options;
+    const { command } = options;
     // Run command from local node_modules
-    command = join(
+    let localCommand = join(
       serverless.config.servicePath,
       "node_modules",
       ".bin",
@@ -217,7 +219,7 @@ export class Utils {
     
     // Append .cmd if running on windows
     if (process.platform === "win32") {
-      command += ".cmd";
+      localCommand += ".cmd";
     }
 
     const env = {
@@ -226,10 +228,12 @@ export class Utils {
       // Environment variables from serverless config are king
       ...serverless.service.provider["environment"],
     }
-    serverless.cli.log(`Spawning process '${command} ${commandArgs.join(" ")}'`);
+    if (!options.silent) {
+      serverless.cli.log(`Spawning process '${command} ${commandArgs.join(" ")}'`);
+    }
     return new Promise(async (resolve, reject) => {
-      const spawnOptions: SpawnOptions = { env, stdio: "inherit" };
-      const childProcess = spawn(command, commandArgs, spawnOptions);
+      const spawnOptions: SpawnOptions = { env, stdio: options.stdio || "inherit" };
+      const childProcess = spawn(localCommand, commandArgs, spawnOptions);
 
       if (onSigInt) {
         process.on("SIGINT", onSigInt);

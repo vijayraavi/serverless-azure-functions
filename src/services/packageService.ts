@@ -42,19 +42,21 @@ export class PackageService extends BaseService {
 
   public async createPackage() {
     if (this.isPython) {
+      this.log("Invoking core tools to build package...")
       await Utils.spawn({
         serverless: this.serverless,
         command: configConstants.funcCoreTools,
         commandArgs: configConstants.funcCoreToolsPackArgs,
+        stdio: "ignore"
       });
       const { servicePath } = this.serverless.config;
       const artifact = path.join(servicePath, path.basename(process.cwd()) + ".zip");
-      this.log(artifact);
       const serverlessDir = path.join(servicePath, ".serverless")
       if (!fs.existsSync(serverlessDir)) {
         fs.mkdirSync(serverlessDir);
       }
-      fs.renameSync(artifact, path.join(serverlessDir, `${this.serviceName}.zip`));
+      const artifactPath = path.join(serverlessDir, `${this.serviceName}.zip`);
+      fs.renameSync(artifact, artifactPath);
     }
   }
 
