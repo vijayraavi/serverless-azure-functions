@@ -1,11 +1,9 @@
 
 import Serverless from "serverless";
+import { ServerlessCliCommand } from "../../models/serverless";
 import AzureProvider from "../../provider/azureProvider";
 import { PackageService } from "../../services/packageService";
 import { AzureBasePlugin } from "../azureBasePlugin";
-import { ServerlessCliCommand } from "../../models/serverless";
-import { Utils } from "../../shared/utils";
-import configConstants from "../../config";
 
 export class AzurePackagePlugin extends AzureBasePlugin {
   private bindingsCreated: boolean = false;
@@ -19,12 +17,14 @@ export class AzurePackagePlugin extends AzureBasePlugin {
       "before:webpack:package:packageModules": this.webpack.bind(this),
       "after:package:finalize": this.finalize.bind(this),
     };
-    if (serverless.service.provider.runtime.includes("python")) {
-      delete this.hooks["before:package:setupProviderConfiguration"];
-      delete this.serverless.pluginManager.hooks["package:setupProviderConfiguration"]
+    if (this.buildCustomPackage) {
+      /**
+       * Replacing lifecycle event to build a deployment artifact with our own
+       * 
+       * Without the delete of the pre-existing hook, setting the hook attempts 
+       * to push the function to an array of functions. We just want to replace it.
+       */
       delete this.serverless.pluginManager.hooks["package:createDeploymentArtifacts"]
-
-      this.hooks["package:setupProviderConfiguration"] = this.setupProviderConfiguration.bind(this),
       this.hooks["package:createDeploymentArtifacts"] = this.createCustomArtifact.bind(this);
     }
   }
@@ -52,7 +52,7 @@ export class AzurePackagePlugin extends AzureBasePlugin {
     const packageService = new PackageService(this.serverless, this.options);
 
     if (this.getOption("package")) {
-      
+      this.log(this.getOption("package"));
       this.log("No need to perform webpack. Using pre-existing package");
       return Promise.resolve();
     }

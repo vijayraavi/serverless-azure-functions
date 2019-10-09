@@ -55,7 +55,6 @@ export class PackageService extends BaseService {
         fs.mkdirSync(serverlessDir);
       }
       fs.renameSync(artifact, path.join(serverlessDir, `${this.serviceName}.zip`));
-      this.options["package"] = path.join(".serverless", `${this.serviceName}.zip`);
     }
   }
 

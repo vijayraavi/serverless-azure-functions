@@ -10,6 +10,11 @@ export abstract class AzureBasePlugin<TOptions=Serverless.Options> {
   protected config: ServerlessAzureConfig;
   protected commands: ServerlessCommandMap;
   protected processedCommands: ServerlessCliCommand[];
+  /**
+   * Specifies whether plugin should build its own deployment artifact
+   * or leave it to the Serverless core to do it instead
+   */
+  protected buildCustomPackage: boolean;
 
   public constructor(
     protected serverless: Serverless,
@@ -18,6 +23,7 @@ export abstract class AzureBasePlugin<TOptions=Serverless.Options> {
     Guard.null(serverless);
     this.config = serverless.service as any;
     this.processedCommands = (serverless as any as ServerlessObject).processedInput.commands;
+    this.buildCustomPackage = serverless.service.provider.runtime.includes("python");
   }
 
   protected log(message: string) {
