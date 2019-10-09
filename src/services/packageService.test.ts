@@ -244,4 +244,38 @@ describe("Package Service", () => {
     mkDirSpy.mockRestore();
     copyFileSpy.mockRestore();
   });
+
+  fdescribe("Python packages", () => {
+
+    beforeEach(() => {
+      mockFs({});
+    });
+
+    afterEach(() => {
+      mockFs.restore();
+    });
+
+    it("generates the correct .funcignore", async () => {
+      const sls = MockFactory.createTestServerless();
+      sls.service.provider.runtime = "python3.6";
+      const service = new PackageService(sls, {} as any);
+      const writeSpy = jest.spyOn(fs, "writeFileSync");
+      await service.createBindings();
+      const calls = writeSpy.mock.calls;
+      
+      expect(writeSpy).toBeCalled();
+    });
+
+    it("creates a python package", () => {
+
+    });
+
+    it("generates python files", () => {
+
+    });
+
+    it("cleans up python files", () => {
+
+    });
+  });
 });

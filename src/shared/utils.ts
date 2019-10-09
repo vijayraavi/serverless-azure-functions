@@ -199,7 +199,7 @@ export class Utils {
     });
   }
 
-    /**
+  /**
    * Spawn a Node child process with predefined environment variables
    * @param command CLI Command - NO ARGS
    * @param spawnArgs Array of arguments for CLI command

@@ -63,7 +63,11 @@ export class MockFactory {
       provider: MockFactory.createTestAzureServiceProvider(),
       service: serviceName,
       artifact: "app.zip",
-      functions
+      functions,
+      package: {
+        exclude: [],
+        include: [],
+      }
     } as any as Service;
   }
 
