@@ -178,6 +178,8 @@ export class FunctionAppResource implements ArmResourceTemplateGenerator {
       }
     };
 
+    console.log(JSON.stringify(params, null, 2));
+
     return params as unknown as ArmParameters;
   }
 

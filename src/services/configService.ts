@@ -195,14 +195,19 @@ export class ConfigService {
     config.provider.resourceGroup = (
       this.getOption("resourceGroup", config.provider.resourceGroup)
     ) || AzureNamingService.getResourceName(options);
+    
+    const functionRuntime = this.getFunctionRuntime(runtime);
+    if (functionRuntime.language === SupportedRuntimeLanguage.PYTHON) {
+      config.provider.os = FunctionAppOS.LINUX;
+    } 
+
+    config.provider.functionRuntime = functionRuntime;
 
     config.provider.deployment = {
       ...configConstants.deploymentConfig,
       ...deployment,
       external: (os === FunctionAppOS.LINUX),
-    }    
-
-    config.provider.functionRuntime = this.getFunctionRuntime(runtime)
+    }
 
     return config;
   }
